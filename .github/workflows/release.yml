@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 lituus-lab
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    # The release every Uni* engine runs, held once in lituus-lab/.github
+    # rather than copied per repo. Pinned by commit, like every other
+    # dependency the family declares.
+    uses: lituus-lab/.github/.github/workflows/uni-nim-release.yml@48140db006ceb8b317be066e8f46f6e185f31a0f
+    permissions:
+      # A called workflow cannot obtain more than the calling job grants:
+      # contents to create the release, id-token for PyPI trusted publishing.
+      contents: write
+      id-token: write
+    with:
+      library: UniDAV
+      module: unidav

@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 lituus-lab
+# What every editor should already do here, said once so none of them has to
+# guess. `nimble lint` is the authority for Nim; this covers the rest.
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{nim,nims,nimble}]
+indent_size = 2
+
+[*.{py,pyx}]
+indent_size = 4
+
+[*.{c,h}]
+indent_size = 2
+
+[Makefile]
+# make reads a leading tab as the recipe marker, and nothing else as one.
+indent_style = tab
+
+[*.md]
+# Two trailing spaces are a line break in Markdown, so trimming them changes
+# the rendered text.
+trim_trailing_whitespace = false

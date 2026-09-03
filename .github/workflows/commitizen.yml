@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 lituus-lab
+name: Conventional commits
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize, labeled, unlabeled]
+
+permissions:
+  contents: read
+
+jobs:
+  commitizen:
+    # Held once in lituus-lab/.github rather than copied per repo, and pinned
+    # by commit like every other dependency the family declares.
+    uses: lituus-lab/.github/.github/workflows/uni-conventional-commits.yml@ec0644ccefcb9b6817f48f06628a17d0a6635d59
+    permissions:
+      # A called workflow cannot obtain more than the calling job grants.
+      pull-requests: read

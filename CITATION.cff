@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 lituus-lab
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: UniDAV
+abstract: >-
+  Template repository for the lituus-lab Uni* libraries: a Nim engine, a C ABI
+  and a Python binding, with the gates and CI that keep the three in agreement.
+type: software
+authors:
+  - family-names: Bartoletti
+    given-names: Loïc
+    email: lbartoletti@lituus-lab.com
+    affiliation: lituus-lab
+repository-code: "https://github.com/lituus-lab/UniDAV"
+license: Apache-2.0
+version: 0.1.0

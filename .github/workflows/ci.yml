@@ -1,0 +1,54 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 lituus-lab
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push makes the previous run's answer irrelevant: cancel it rather
+# than pay for both.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    # The CI every Uni* engine runs, held once in lituus-lab/.github rather
+    # than copied per repo. Pinned by commit: a moving ref here would be the
+    # same unpinned dependency the family forbids everywhere else.
+    uses: lituus-lab/.github/.github/workflows/uni-nim-library.yml@6c44c93c77d604d950b74309d75592a7a68f5c42
+    permissions:
+      # A called workflow cannot obtain more than the calling job grants.
+      contents: read
+      pages: write
+      id-token: write
+    with:
+      library: UniDAV
+      module: unidav
+      python-smoke-test: py/tests/test_fibonacci.py
+
+  all-green:
+    name: All green
+    # The one check branch protection requires, and the only name that has to
+    # stay stable. `needs.ci.result` is the whole called workflow's verdict; a
+    # repo with jobs of its own adds them here beside it.
+    needs: [ci]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Every required job must have succeeded
+        run: |
+          results='${{ join(needs.*.result, ' ') }}'
+          echo "results: $results"
+          for one in $results; do
+            case "$one" in
+              success) ;;
+              skipped) ;;
+              *) echo "all-green: a required job reported $one" >&2; exit 1 ;;
+            esac
+          done
