@@ -7,8 +7,11 @@ author        = "lituus-lab"
 description   = "vCard, iCalendar, CardDAV and CalDAV engine (Nim + C ABI + Python + WASM)"
 license       = "Apache-2.0"
 srcDir        = "src"
-bin           = @["unidav"]
-binDir        = "bin"
+# No `bin` entry: nimble resolves one against srcDir, so `bin = @["unidav"]`
+# means `src/unidav.nim` -- which on macOS and Windows is the same file as
+# `src/UniDAV.nim`, the library. The CLI keeps its own directory and its own
+# task, and `nimble install` installs the library, as everywhere else in the
+# family. Left declared, `nimble install` printed "Build failed" and exited 0.
 
 requires "nim >= 2.2.0"
 # The SQLite cache behind pull/journal sync. UniDatabase compiles SQLite in, so
@@ -193,6 +196,10 @@ task testAll, "debug + release + C ABI":
   exec gate("testRelease")
   exec gate("ctest")
   done "testAll"
+
+task cli, "The unidav command":
+  exec "nim c -d:release --path:src -o:build/unidav bin/unidav.nim"
+  done "cli"
 
 task example, "Nim demo":
   exec "nim c -r --path:src -o:build/demo examples/demo.nim"

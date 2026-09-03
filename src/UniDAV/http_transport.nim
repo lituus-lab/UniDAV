@@ -218,9 +218,22 @@ proc newHttpTransport*(config = defaultHttpTransportConfig()): DavTransport =
   validateConfig(config)
   result = proc(initialRequest: DavRequest): DavHttpResponse =
     validateHttpUrl(initialRequest.url, config.allowPlainHttp)
-    if parseUri(initialRequest.url).scheme == "http" and
-        config.credentials.kind != dakNone:
-      raise newException(HttpTransportError, "authentication over plain HTTP is forbidden")
+    # Configured credentials are not the only way a secret leaves: a caller can
+    # put Authorization or Cookie in the request's own headers, and that used
+    # to travel in clear over http:// as long as the config said dakNone.
+    # Checked here for the first request, and again per hop below -- a redirect
+    # to http:// is the same leak arriving later.
+    proc refusePlainSecrets(url: string; headers: Table[string, string]) =
+      if parseUri(url).scheme != "http": return
+      if config.credentials.kind != dakNone:
+        raise newException(HttpTransportError,
+          "authentication over plain HTTP is forbidden")
+      for name in headers.keys:
+        if name.toLowerAscii in ["authorization", "cookie"]:
+          raise newException(HttpTransportError,
+            "sending " & name & " over plain HTTP is forbidden")
+
+    refusePlainSecrets(initialRequest.url, initialRequest.headers)
     var request = initialRequest
     var auth = authorization(config.credentials)
     for redirectCount in 0 .. config.maxRedirects:
@@ -239,6 +252,10 @@ proc newHttpTransport*(config = defaultHttpTransportConfig()): DavTransport =
         auth = ""
         request.headers.removeSensitiveHeaders()
       request.url = nextUrl
+      # A same-origin http:// -> http:// hop keeps the headers, so the check is
+      # made again on what is about to be sent rather than only on what the
+      # caller first handed over.
+      refusePlainSecrets(request.url, request.headers)
       if result.status == 303:
         request.httpMethod = dmGet
         request.body = ""

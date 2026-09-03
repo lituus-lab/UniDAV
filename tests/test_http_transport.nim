@@ -41,14 +41,27 @@ suite "native DAV HTTP transport":
     check transport(DavRequest(httpMethod: dmPost, url: baseUrl,
       headers: initTable[string, string](), body: "schedule")).body == "POST"
 
-  test "does not forward credentials to another origin":
+  test "knows what shares an origin":
     check sameOrigin(baseUrl & "/a", baseUrl & "/b")
     check not sameOrigin(baseUrl, "http://localhost:" & $port)
-    var sensitive = initTable[string, string]()
-    sensitive["Authorization"] = "Bearer caller-secret"
-    sensitive["Cookie"] = "session=caller-secret"
+
+  test "refuses to send a caller's secret over plain HTTP":
+    # Configured credentials were already refused over http:// even with
+    # allowPlainHttp; an Authorization or Cookie the caller puts in the request
+    # is the same secret by another route, and used to travel in clear.
+    #
+    # This is why the cross-origin stripping below cannot be exercised
+    # end to end over this fixture any more: the request never leaves.
+    for header in ["Authorization", "Cookie"]:
+      var sensitive = initTable[string, string]()
+      sensitive[header] = "caller-secret"
+      expect HttpTransportError:
+        discard transport(DavRequest(httpMethod: dmPropfind,
+          url: baseUrl & "/cross-origin", headers: sensitive))
+
+  test "a request without secrets still crosses origins":
     let response = transport(DavRequest(httpMethod: dmPropfind,
-      url: baseUrl & "/cross-origin", headers: sensitive))
+      url: baseUrl & "/cross-origin", headers: initTable[string, string]()))
     check response.status == 207
     check response.body == "absent"
 

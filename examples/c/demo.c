@@ -36,9 +36,17 @@ int main(void) {
                                             "20260101T000000Z",
                                             "20260201T000000Z", 10));
 
-  // A document that is not one: the failure is a NULL return with a status,
-  // never an exception crossing the boundary.
-  char *refused = unidav_validate_json("this is not a vCard");
+  // Two different answers, and the difference is the point.
+  //
+  // Validation reports: a document that is not one still comes back as a
+  // verdict with diagnostics, because a caller importing an unknown file needs
+  // to see why.
+  failures += show("verdict:", unidav_validate_json("this is not a vCard"));
+
+  // Normalisation cannot report: there is nothing to normalise, so it fails.
+  // A failure is NULL with a code in unidav_status -- never an exception
+  // crossing the boundary.
+  char *refused = unidav_normalize("this is not a vCard");
   printf("%-12s %s (status %d)\n", "refused:",
          refused == NULL ? "NULL" : refused, unidav_status());
   unidav_free(refused);

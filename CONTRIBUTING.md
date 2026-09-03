@@ -31,13 +31,19 @@ Run the tasks relevant to the change and the complete local gate before a
 pull request:
 
 ```sh
-nimble lint
-nimble checkVGraph
-nimble test
-nimble testRelease
-nimble ctest
-nimble pyTest
+nim c --hints:off -o:build/unigate tools/gate.nim   # once
+
+build/unigate lint
+build/unigate checkVGraph
+build/unigate test
+build/unigate testRelease
+build/unigate ctest
+build/unigate pyTest
 ```
+
+Through the gate, never `nimble <task>` bare: nimble exits 0 even when an
+`exec` inside a task failed, so a green run tells you only that nimble ran.
+The gate reads the marker each task writes on its last line.
 
 A DAV regression needs an anonymized fixture and a recovery-path test. Changes
 to a public Nim operation also update the surface-completeness manifest or

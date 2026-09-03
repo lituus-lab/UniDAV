@@ -252,7 +252,17 @@ proc expandRecurrence*(startValue, rule: string; window: RecurrenceWindow): seq[
         (it > 0 and it == isoWeek) or (it < 0 and weeksInYear + it + 1 == isoWeek))
       if hourMatches and monthMatches and monthDayMatches and dayMatches and
           yearDayMatches and weekMatches:
-        for minute in minutes:
+        # HOURLY walks the BYMINUTE list, because the hour is the step and the
+        # minute is chosen inside it. MINUTELY is already stepping by minute,
+        # so BYMINUTE is a filter on the cursor -- looping it here emitted the
+        # same instant once per entry, and matched instants BYMINUTE excluded.
+        if frequency != "HOURLY" and byMinutes.len > 0 and
+            cursor.minute.int notin byMinutes:
+          inc generated
+          cursor = cursor + initDuration(minutes = interval)
+          continue
+        for minute in (if frequency == "HOURLY": minutes else: @[
+            cursor.minute.int]):
           if count > 0 and emitted >= count: break
           for second in seconds:
             if count > 0 and emitted >= count: break

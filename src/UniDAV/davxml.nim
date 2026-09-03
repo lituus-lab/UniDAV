@@ -123,13 +123,31 @@ proc hasPropertyChild*(response: DavResponse; propertyName,
     for name in item.childNames:
       if name.cmpIgnoreCase(childName) == 0: return true
 
+const NameChars = {'A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.'}
+  ## What may appear in an XML element name here. Deliberately narrower than
+  ## the standard allows: every property this library asks for is spelled from
+  ## these, and a wider set only widens what a caller can inject.
+
 proc propfindBody*(properties: openArray[(string, string)]): string =
   result = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" &
     "<D:propfind xmlns:D=\"DAV:\" xmlns:C=\"" & CalDavNamespace &
     "\" xmlns:A=\"" & CardDavNamespace & "\"><D:prop>"
   for (namespace, name) in properties:
-    let prefix = if namespace == DavNamespace: "D" elif namespace ==
-        CalDavNamespace: "C" else: "A"
+    # Three namespaces are declared above, and an unknown one used to fall
+    # through to `A` -- so a caller asking for a property in a namespace this
+    # body cannot declare got a CardDAV element instead, and a server answered
+    # about something else entirely.
+    let prefix =
+      if namespace == DavNamespace: "D"
+      elif namespace == CalDavNamespace: "C"
+      elif namespace == CardDavNamespace: "A"
+      else:
+        raise newException(DavXmlError,
+          "propfind namespace is not declared by this body: " & namespace)
+    # The name goes into a tag, where escaping cannot save it: a name carrying
+    # `<`, a quote or a space is not a name, it is markup.
+    if name.len == 0 or not name.allCharsInSet(NameChars):
+      raise newException(DavXmlError, "propfind property name is not a name: " & name)
     result.add("<" & prefix & ":" & name & "/>")
   result.add("</D:prop></D:propfind>")
 

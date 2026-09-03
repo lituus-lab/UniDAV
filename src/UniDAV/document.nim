@@ -877,7 +877,9 @@ proc validateCalendarComponent(component: Component;
       diagnostics.addDiagnostic("VALARM requires exactly one ACTION")
     if component.properties("TRIGGER").len != 1:
       diagnostics.addDiagnostic("VALARM requires exactly one TRIGGER")
-    elif firstValue(component, "ACTION").toUpperAscii notin
+    # Its own `if`, not an `elif` on the TRIGGER count: the two say nothing
+    # about each other, and an alarm with both faults reported only the first.
+    if firstValue(component, "ACTION").toUpperAscii notin
         ["AUDIO", "DISPLAY", "EMAIL"]:
       diagnostics.addDiagnostic("VALARM ACTION is not an RFC 5545 value")
     let action = firstValue(component, "ACTION").toUpperAscii

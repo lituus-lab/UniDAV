@@ -216,3 +216,28 @@ suite "bounded recurrence expansion":
         last: parse("20260103T000000Z", "yyyyMMdd'T'HHmmss'Z'", utc()),
             maxOccurrences: 10))
     check allDayValues == @["20260101T000000Z", "20260102T000000Z"]
+
+suite "minute selectors":
+  proc window(first, last: string; count: int): RecurrenceWindow =
+    RecurrenceWindow(first: parse(first, "yyyyMMdd'T'HHmmss'Z'", utc()),
+      last: parse(last, "yyyyMMdd'T'HHmmss'Z'", utc()), maxOccurrences: count)
+
+  test "MINUTELY treats BYMINUTE as a filter, not a list to walk":
+    # It used to iterate BYMINUTE while building the value from the cursor, so
+    # every instant came out once per entry -- and minutes BYMINUTE excluded
+    # came out anyway.
+    let got = expandRecurrence("20260101T000000Z",
+      "FREQ=MINUTELY;INTERVAL=10;BYMINUTE=0,30",
+      window("20260101T000000Z", "20260101T020000Z", 50))
+    check got == @["20260101T000000Z", "20260101T003000Z",
+      "20260101T010000Z", "20260101T013000Z", "20260101T020000Z"]
+
+  test "HOURLY still walks it, because the hour is the step":
+    check expandRecurrence("20260101T000000Z", "FREQ=HOURLY;BYMINUTE=0,30",
+      window("20260101T000000Z", "20260101T010000Z", 50)) ==
+      @["20260101T000000Z", "20260101T003000Z", "20260101T010000Z"]
+
+  test "the window's ceiling is what comes back, whatever the rule":
+    # An unbounded rule over a year: the result is the ceiling, not more.
+    check expandRecurrence("20260101T000000Z", "FREQ=MINUTELY",
+      window("20260101T000000Z", "20261231T000000Z", 5)).len == 5

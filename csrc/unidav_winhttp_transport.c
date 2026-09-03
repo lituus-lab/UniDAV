@@ -350,7 +350,16 @@ unidav_winhttp_response *unidav_winhttp_perform(const char *method, const char *
       goto cleanup;
     }
   }
-  if (!response->body) response->body = copy_string("");
+  if (!response->body) {
+    response->body = copy_string("");
+    /* Out of memory here used to leave body NULL on an otherwise successful
+       response, which the Nim side reads as an empty body rather than a
+       failure. */
+    if (!response->body) {
+      set_error(response, "allocating an empty response body");
+      goto cleanup;
+    }
+  }
 
 cleanup:
   if (request) WinHttpCloseHandle(request);

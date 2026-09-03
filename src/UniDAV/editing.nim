@@ -14,8 +14,17 @@ type
     conflicts*: seq[MergeConflict]
 
 proc textEscape*(value: string): string =
-  value.replace("\\", "\\\\").replace("\n", "\\n").replace(",", "\\,").replace(
-      ";", "\\;")
+  ## The TEXT escaping both formats require. CRLF and a bare CR escape to the
+  ## same `\n` as a line feed: a carriage return left raw ends the content line
+  ## mid-value, and the next parser reads the rest as a new property.
+  ##
+  ## CRLF first, so a pair does not become two escapes.
+  value.replace("\\", "\\\\")
+    .replace("\r\n", "\\n")
+    .replace("\r", "\\n")
+    .replace("\n", "\\n")
+    .replace(",", "\\,")
+    .replace(";", "\\;")
 
 proc textUnescape*(value: string): string =
   var index = 0

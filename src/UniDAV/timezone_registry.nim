@@ -32,15 +32,19 @@ proc validTzid(value: string): bool =
     value.allCharsInSet({' '..'~'}) and not value.contains({'\r', '\n'})
 
 proc parseOffset(value: string): int =
-  if value.len != 5 or value[0] notin ['+', '-'] or
-      not value[1..4].allCharsInSet({'0'..'9'}):
+  ## `+HHMM` and `+HHMMSS`, the two forms RFC 5545 allows. The seven-character
+  ## one was refused here while `document.validOffset` accepted it, so a
+  ## VTIMEZONE that validated could not be registered.
+  if value.len notin [5, 7] or value[0] notin ['+', '-'] or
+      not value[1 .. ^1].allCharsInSet({'0'..'9'}):
     raise newException(TimezoneRegistryError, "invalid VTIMEZONE offset")
   let hours = parseInt(value[1..2])
   let minutes = parseInt(value[3..4])
-  if hours > 23 or minutes > 59:
+  let extraSeconds = if value.len == 7: parseInt(value[5..6]) else: 0
+  if hours > 23 or minutes > 59 or extraSeconds > 59:
     raise newException(TimezoneRegistryError, "invalid VTIMEZONE offset")
-  let seconds = hours * 3600 + minutes * 60
-  if value[0] == '-': -seconds else: seconds
+  let total = hours * 3600 + minutes * 60 + extraSeconds
+  if value[0] == '-': -total else: total
 
 proc parseTransition(value: string): DateTime =
   try:
