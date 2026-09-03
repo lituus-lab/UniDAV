@@ -1,0 +1,11 @@
+{
+    auto_https disable_redirects
+    admin off
+}
+
+https://localhost:8447 {
+    tls internal
+    @davDiscovery path /.well-known/caldav /.well-known/carddav
+    rewrite @davDiscovery /interop/
+    reverse_proxy unidav-radicale:5232
+}

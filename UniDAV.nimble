@@ -1,14 +1,20 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 lituus-lab
-# UniDAV — reference scaffold for the lituus-lab Uni* family.
+# UniDAV — the calendaring and contacts engine of the lituus-lab Uni* family.
 
 version       = "0.1.0"
 author        = "lituus-lab"
-description   = "Reference template for the lituus-lab Uni* libraries (Nim + C-ABI + Python)"
+description   = "vCard, iCalendar, CardDAV and CalDAV engine (Nim + C ABI + Python + WASM)"
 license       = "Apache-2.0"
 srcDir        = "src"
+bin           = @["unidav"]
+binDir        = "bin"
 
 requires "nim >= 2.2.0"
+# The SQLite cache behind pull/journal sync. UniDatabase compiles SQLite in, so
+# nothing here loads it at run time and Windows needs no sqlite3.dll -- which
+# db_connector did need, and which a runner does not have.
+requires "https://github.com/lituus-lab/UniDatabase#main"
 requires "https://github.com/lbartoletti/NimContracts#main"
 
 # The book toolchain, needed by three tasks and by nothing the library ships.
@@ -47,9 +53,11 @@ import std/strutils
 # other platform here ships `python3`.
 const python = when defined(windows): "python" else: "python3"
 
-const CoverageMin = 90.0
-  ## Line coverage below this fails `coverage`. The template sits at 100 on one
-  ## module; a real engine sets what its own suite can hold.
+const CoverageMin = 85.0
+  ## Line coverage below this fails `coverage`. The suite reaches 90.8; the
+  ## margin is for the modules that answer to something outside this repo --
+  ## http_transport, sync, service_discovery are exercised by `testInterop`
+  ## against a real DAV server, which gcov never watches.
 
 const gateExe =
   when defined(windows): "build/unigate.exe" else: "build/unigate"
@@ -137,22 +145,46 @@ task docs, "API reference + book into pages/ — what CI publishes":
   done "docs"
 
 task test, "Nim tests (debug, contracts active)":
-  exec "nim c -r --path:src -o:build/test_fibonacci tests/test_fibonacci.nim"
+  exec "nim c -r --path:src -o:build/test_formats tests/test_formats.nim"
+  exec "nim c -r --path:src -o:build/test_dav tests/test_dav.nim"
+  exec "nim c -r --path:src -o:build/test_client tests/test_client.nim"
+  when not defined(windows):
+    exec "nim c -r --path:src -o:build/test_http_transport tests/test_http_transport.nim"
+  exec "nim c -r --path:src -o:build/test_recurrence tests/test_recurrence.nim"
+  exec "nim c -r --path:src -o:build/test_timezone_registry tests/test_timezone_registry.nim"
   exec "nim c -r --path:src -o:build/test_version tests/test_version.nim"
   done "test"
 
 task testRelease, "Nim tests (release, contracts compiled away)":
-  exec "nim c -r -d:release --path:src -o:build/test_fibonacci_rel tests/test_fibonacci.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_formats_rel tests/test_formats.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_dav_rel tests/test_dav.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_client_rel tests/test_client.nim"
+  when not defined(windows):
+    exec "nim c -r -d:release --path:src -o:build/test_http_transport_rel tests/test_http_transport.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_recurrence_rel tests/test_recurrence.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_timezone_registry_rel tests/test_timezone_registry.nim"
   exec "nim c -r -d:release --path:src -o:build/test_version_rel tests/test_version.nim"
   done "testRelease"
 
 task testCi, "Nim tests CI runs, debug — narrow this in a clone whose suite grows slow":
-  exec "nim c -r --path:src -o:build/test_fibonacci tests/test_fibonacci.nim"
+  exec "nim c -r --path:src -o:build/test_formats tests/test_formats.nim"
+  exec "nim c -r --path:src -o:build/test_dav tests/test_dav.nim"
+  exec "nim c -r --path:src -o:build/test_client tests/test_client.nim"
+  when not defined(windows):
+    exec "nim c -r --path:src -o:build/test_http_transport tests/test_http_transport.nim"
+  exec "nim c -r --path:src -o:build/test_recurrence tests/test_recurrence.nim"
+  exec "nim c -r --path:src -o:build/test_timezone_registry tests/test_timezone_registry.nim"
   exec "nim c -r --path:src -o:build/test_version tests/test_version.nim"
   done "testCi"
 
 task testCiRelease, "Nim tests CI runs, release — narrow this in a clone whose suite grows slow":
-  exec "nim c -r -d:release --path:src -o:build/test_fibonacci_rel tests/test_fibonacci.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_formats_rel tests/test_formats.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_dav_rel tests/test_dav.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_client_rel tests/test_client.nim"
+  when not defined(windows):
+    exec "nim c -r -d:release --path:src -o:build/test_http_transport_rel tests/test_http_transport.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_recurrence_rel tests/test_recurrence.nim"
+  exec "nim c -r -d:release --path:src -o:build/test_timezone_registry_rel tests/test_timezone_registry.nim"
   exec "nim c -r -d:release --path:src -o:build/test_version_rel tests/test_version.nim"
   done "testCiRelease"
 
@@ -264,7 +296,7 @@ task coverage, "LCOV + HTML coverage report for the Nim sources (needs lcov)":
   rmDir "coverage"
   exec "nim c --path:src --nimcache:" & cache &
        " --debugger:native --passC:--coverage --passL:--coverage" &
-       " -o:build/test_coverage tests/test_fibonacci.nim"
+       " -o:build/test_coverage tests/test_all.nim"
   exec "./build/test_coverage"
   exec "lcov --capture --directory " & cache & " --base-directory ." &
        " --include \"*/src/UniDAV/*\" --ignore-errors mismatch" &
@@ -307,3 +339,44 @@ task coverage, "LCOV + HTML coverage report for the Nim sources (needs lcov)":
          "% this repo requires", 1)
   echo "coverage: " & $rate & "% of lines, at or above " & $CoverageMin & "%"
   done "coverage"
+
+# --- UniDAV's own tasks ------------------------------------------------------
+# Not in the family template: a WASM facade, and two suites that need something
+# outside this repo -- a DAV server, and Python parsers to check the formats
+# against. Each ends with `done`, like every other task here, so the
+# gate can tell "ran to the end" from "nimble exited 0".
+
+
+
+task buildWasm, "The JSON WASM facade (needs Emscripten)":
+  # -d:noAutoInit like every other --noMain build: emcc emits no constructor
+  # either, so the first entry point would run against globals nobody set up.
+  exec "nim c -d:release -d:emscripten -d:wasm -d:noAutoInit --noMain" &
+       " --cpu:wasm32 --threads:off --cc:clang --clang.exe:emcc" &
+       " --clang.linkerexe:emcc --path:src -o:build/unidav.js" &
+       " src/UniDAV/wasm_api.nim"
+  done "buildWasm"
+
+task wasmTest, "WASM facade smoke test (needs Emscripten and node)":
+  exec gate("buildWasm")
+  exec "node tests/test_wasm.cjs"
+  done "wasmTest"
+
+task testRadicale, "Opt-in TLS interoperability against a prepared Radicale":
+  exec "nim c -r --path:src -o:build/test_radicale tests/test_server_interop.nim"
+  done "testRadicale"
+
+task testInterop, "Opt-in TLS interoperability against any prepared DAV server":
+  exec "nim c -r --path:src -o:build/test_interop tests/test_server_interop.nim"
+  done "testInterop"
+
+task oracleDeps, "Install the test-only Python format oracles":
+  exec python & " -m pip install --break-system-packages -r tests/oracles/requirements.txt"
+  done "oracleDeps"
+
+task testOracles, "Check the fixtures against independent PIM parsers":
+  # Independent implementations, not this library's own opinion: a format bug
+  # that both the parser and its test share is invisible to the suite alone.
+  exec gate("oracleDeps")
+  exec "nim c -r --path:src -o:build/test_oracles tests/test_oracles.nim"
+  done "testOracles"

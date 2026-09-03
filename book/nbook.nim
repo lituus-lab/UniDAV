@@ -2,9 +2,8 @@
 # Copyright 2026 lituus-lab
 ## The table of contents, and the two settings that decide the theme.
 ##
-## Four chapters, because the standard asks a chapter for ten slots and a
-## single page cannot show them separately. What a reader takes from this book
-## is not fibonacci; it is the shape.
+## Five chapters: what the library is, the formats it reads, the protocol it
+## speaks, and the two surfaces that reach it from outside Nim.
 import std/tables
 import nimibook
 # `from ... import` and not a plain import: the theme module re-exports nimib
@@ -14,12 +13,13 @@ from lituus_theme import faviconTag
 
 var book = initBookWithToc:
   entry("UniDAV", "index.nim")
-  entry("Fibonacci", "fibonacci.nim")
-  entry("Contracts", "contracts.nim")
-  entry("Surfaces", "surfaces.nim")
+  entry("Formats", "formats.nim")
+  entry("DAV", "dav.nim")
+  entry("The C surface", "c_binding.nim")
+  entry("The Python surface", "python_binding.nim")
 
 book.title = "UniDAV"
-book.description = "The scaffold every lituus-lab Uni* engine starts from."
+book.description = "Calendars and contacts, losslessly."
 
 # The two BookConfig fields that select a theme. nimibook's inline script picks
 # between them with `prefers-color-scheme`, and localStorage overrides.

@@ -52,6 +52,15 @@ coverage on ubuntu; a canary job that must fail; `all-green` over all of them.
   `mismatch`, which lcov 2.0 raises on a NimContracts-generated destructor and
   lcov 2.5 does not — a compiler-generated symbol, not a line of the library.
 
+- The SQLite cache goes through UniDatabase, which compiles SQLite in. Nothing
+  loads `sqlite3.dll` at run time -- verified on Windows with a PATH holding
+  only system32: the built binary imports KERNEL32, the UCRT and WINHTTP, and
+  nothing else. `db_connector` needed a system SQLite, which a CI runner has
+  not got.
+- `row` gives an empty seq when there is no row. db_connector gave a row of
+  empty strings, so callers tested the first column -- which could not tell "no
+  such account" from "an account whose name is empty".
+
 ## Scope
 
 GitHub template repository for the `Uni*` family: "Use this template" starts an

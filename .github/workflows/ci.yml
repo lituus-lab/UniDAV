@@ -30,7 +30,7 @@ jobs:
     with:
       library: UniDAV
       module: unidav
-      python-smoke-test: py/tests/test_fibonacci.py
+      python-smoke-test: py/tests/test_binding.py
 
   all-green:
     name: All green
