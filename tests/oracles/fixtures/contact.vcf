@@ -1,0 +1,7 @@
+BEGIN:VCARD
+VERSION:4.0
+FN:Oracle Contact
+N:Contact;Oracle;;;
+EMAIL;TYPE=work:oracle@example.test
+X-UNIDAV-ORACLE;X-PARAM=opaque:retained
+END:VCARD

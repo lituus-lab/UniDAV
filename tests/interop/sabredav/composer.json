@@ -1,0 +1,11 @@
+{
+  "require": {
+    "sabre/dav": "4.6.0",
+    "sabre/event": "5.1.9",
+    "sabre/http": "5.1.13",
+    "sabre/uri": "2.3.4",
+    "sabre/vobject": "4.6.1",
+    "sabre/xml": "2.2.11",
+    "psr/log": "3.0.2"
+  }
+}

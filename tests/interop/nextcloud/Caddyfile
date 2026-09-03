@@ -1,0 +1,11 @@
+{
+    auto_https disable_redirects
+    admin off
+}
+
+https://localhost:8445 {
+    tls internal
+    @davDiscovery path /.well-known/caldav /.well-known/carddav
+    rewrite @davDiscovery /remote.php/dav/
+    reverse_proxy unidav-nextcloud:80
+}
