@@ -21,7 +21,7 @@ jobs:
     # The CI every Uni* engine runs, held once in lituus-lab/.github rather
     # than copied per repo. Pinned by commit: a moving ref here would be the
     # same unpinned dependency the family forbids everywhere else.
-    uses: lituus-lab/.github/.github/workflows/uni-nim-library.yml@6c44c93c77d604d950b74309d75592a7a68f5c42
+    uses: lituus-lab/.github/.github/workflows/uni-nim-library.yml@003e9e77cc7985666761231188b72978420b2493
     permissions:
       # A called workflow cannot obtain more than the calling job grants.
       contents: read
@@ -31,6 +31,10 @@ jobs:
       library: UniDAV
       module: unidav
       python-smoke-test: py/tests/test_binding.py
+      # The C transport includes <curl/curl.h>; an ubuntu runner ships the
+      # shared library and not the headers. macOS has them and Windows uses
+      # WinHTTP, so this is Linux only.
+      apt-packages: libcurl4-openssl-dev
 
   all-green:
     name: All green

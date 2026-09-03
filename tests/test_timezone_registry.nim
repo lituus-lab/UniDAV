@@ -55,3 +55,16 @@ suite "bounded VTIMEZONE registry":
     check registry.offsetAt("Europe/Recurring", "20260301T120000") == 3600
     check registry.offsetAt("Europe/Recurring", "20260320T120000") == 7200
     check registry.offsetAt("Europe/Recurring", "20261028T120000") == 3600
+
+suite "offsets with seconds":
+  test "the seven-character form is accepted, as the validator already was":
+    # `document.validOffset` allowed +HHMMSS while the registry refused it, so
+    # a VTIMEZONE that validated could not be registered.
+    let vtimezone = "BEGIN:VTIMEZONE\r\nTZID:Test/Seconds\r\n" &
+      "BEGIN:STANDARD\r\nDTSTART:19000101T000000\r\n" &
+      "TZOFFSETFROM:+001732\r\nTZOFFSETTO:+001732\r\nTZNAME:LMT\r\n" &
+      "END:STANDARD\r\nEND:VTIMEZONE\r\n"
+    let registry = newTimezoneRegistry()
+    registry.registerTimezone(parseComponents(vtimezone)[0])
+    # 0h17m32s = 1052 seconds; the seconds must reach the total, not be dropped.
+    check registry.offsetAt("Test/Seconds", "20260101T120000") == 1052

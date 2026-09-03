@@ -930,3 +930,36 @@ suite "three-way lossless merges":
     check merged.conflicts.len == 1
     check merged.conflicts[0].property == "FN"
     check merged.document.contains("FN:Ada")
+
+suite "what the review found":
+  # Each of these was measured on the code before it was changed, not inferred.
+
+  test "a carriage return is escaped, not left to end the line":
+    # Raw, it terminates the content line mid-value and the rest is read as a
+    # new property.
+    check textEscape("a\r\nb") == "a\\nb"
+    check textEscape("a\rb") == "a\\nb"
+    check textEscape("a\nb") == "a\\nb"
+
+  test "propfind refuses a namespace its body cannot declare":
+    expect DavXmlError:
+      discard propfindBody([("http://example.org/ns", "thing")])
+    # The three it declares still work.
+    check "D:getetag" in propfindBody([(DavNamespace, "getetag")])
+    check "C:calendar-data" in propfindBody([(CalDavNamespace,
+        "calendar-data")])
+
+  test "propfind refuses a property name that is markup":
+    for name in ["a b", "a<b", "a\"b", ""]:
+      expect DavXmlError:
+        discard propfindBody([(DavNamespace, name)])
+
+  test "an alarm with two faults reports both":
+    # The ACTION check used to hang off the TRIGGER count, so only one showed.
+    let alarm = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//T//EN\r\n" &
+      "BEGIN:VEVENT\r\nUID:a\r\nDTSTAMP:20260101T000000Z\r\n" &
+      "DTSTART:20260101T000000Z\r\nBEGIN:VALARM\r\nACTION:NONSENSE\r\n" &
+      "END:VALARM\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+    let report = validationJson(alarm)
+    check "exactly one TRIGGER" in report
+    check "ACTION is not an RFC 5545 value" in report

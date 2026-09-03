@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel", "Cython>=3"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "unidav"
+name = "lituus-unidav"
 version = "0.1.0"
 description = "Python binding for the UniDAV C ABI"
 readme = "README.md"

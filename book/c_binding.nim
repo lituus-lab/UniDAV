@@ -65,8 +65,9 @@ library would otherwise get — without that guard the first call would run
 against globals nobody had set up.
 
 The link line names `-lcurl` because the engine's own hardened transport is
-compiled from `csrc/`; on Windows it is `-lwinhttp` instead. SQLite is loaded
-at run time, so nothing links it.
+compiled from `csrc/`; on Windows it is `-lwinhttp` instead. Nothing links
+SQLite: the sync cache goes through UniDatabase, which compiles the SQLite
+amalgamation in, so there is no library to find and none loaded at run time.
 """
 
 nbSave

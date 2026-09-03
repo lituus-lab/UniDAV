@@ -117,6 +117,12 @@ unidav_curl_response *unidav_curl_perform(const char *method, const char *url,
   code = curl_easy_setopt(handle, option, value); \
   if (code != CURLE_OK) goto option_error; \
 } while (0)
+  /* body may be NULL only when there is nothing to send. Passing NULL with a
+     nonzero length makes libcurl read body_length bytes from address zero. */
+  if (body == NULL && body_length != 0) {
+    response->error = unidav_copy_string("request body is NULL with a nonzero length");
+    goto cleanup;
+  }
   UDAV_SETOPT(CURLOPT_URL, url);
   UDAV_SETOPT(CURLOPT_CUSTOMREQUEST, method);
   UDAV_SETOPT(CURLOPT_HTTPHEADER, headers);

@@ -27,45 +27,79 @@ installing it needs neither Nim nor a compiler.
 pip install unidav
 ```
 
+UniDAV reads and writes vCard and iCalendar, and speaks CardDAV and CalDAV.
+Its rule is lossless: the ordered document tree is the source of truth, and a
+property the library does not understand survives a round trip untouched.
+
 CI executes this notebook against the wheel the release actually publishes, so
 an output below that stops matching fails the build."""),
     ("md", "## The API"),
-    ("code", """import unidav
+    ("code", """import json
 
-unidav.version(), unidav.__version__"""),
-    ("md", "`fibonacci` is the template's hello-world, iterative and O(n)."),
-    ("code", "[unidav.fibonacci(n) for n in range(11)]"),
-    ("md", """## The domain is part of the contract
+import unidav
 
-`fibonacci` is defined on `[0, 92]` — 92 being the largest argument whose result
-still fits in a signed 64-bit integer. The bound is not advisory."""),
-    ("code", "unidav.fibonacci(92)"),
-    ("md", """Past it the binding raises, rather than returning a silently wrong
-number. This is the contract the Nim library states as a precondition; each
-surface expresses it in the terms its own callers expect."""),
-    ("code", """try:
-    unidav.fibonacci(93)
-except ValueError as exc:
-    print("ValueError:", exc)"""),
-    ("code", """try:
-    unidav.fibonacci(-1)
-except ValueError as exc:
-    print("ValueError:", exc)"""),
-    ("md", "A non-integer argument is a type error, not a coercion."),
-    ("code", """try:
-    unidav.fibonacci(10.0)
-except TypeError as exc:
-    print("TypeError:", exc)"""),
+unidav.version()"""),
+    ("md", """## Validate, then normalise
+
+Validation reports; it does not throw. A document that is wrong is still a
+document you can look at, which is what importing a file from an unknown
+source needs."""),
+    ("code", """card = ("begin:vcard\\nversion:4.0\\nuid:urn:uuid:ada\\n"
+        "fn:Ada Lovelace\\nemail:ada@example.org\\n"
+        "x-phone-model:something\\nend:vcard\\n")
+
+unidav.validate(card)"""),
+    ("md", """Normalising puts line endings, folding and case right — and leaves
+`X-PHONE-MODEL`, which UniDAV has no opinion about, exactly where it was.
+Normalising is not filtering."""),
+    ("code", 'unidav.normalize(card).split("\\r\\n")'),
+    ("md", """## The typed view
+
+A host that wants a name and an address should not have to walk a component
+tree. The projection is a *view*: take it to display, keep the document to
+store."""),
+    ("code", """projection = unidav.project(card)
+projection["kind"], projection["uid"], projection["name"]["full"]"""),
+    ("md", """`x-phone-model` is absent from the projection and present in the
+document. A host round-tripping through the projection alone would drop it."""),
+    ("code", '"x-phone-model" in json.dumps(projection).lower()'),
+    ("md", "## The JSON encodings"),
+    ("code", "unidav.to_jcard(unidav.normalize(card))"),
+    ("md", """## Merging is where a sync client lives
+
+Two sides changed the same contact. `merge` takes the common ancestor and both
+versions, and answers with a document plus the conflicts it could not decide —
+rather than picking a winner quietly."""),
+    ("code", """base  = "BEGIN:VCARD\\r\\nVERSION:4.0\\r\\nUID:a\\r\\nFN:Ada\\r\\nEND:VCARD\\r\\n"
+local = base.replace("FN:Ada", "FN:Grace")
+
+agreed = unidav.merge(base, local, base)
+print("merged FN:Grace:", "FN:Grace" in agreed["document"])
+print("conflicts:      ", agreed["conflicts"])"""),
+    ("code", """both = base.replace("FN:Ada", "FN:Katherine")
+clash = unidav.merge(base, local, both)
+print("both sides changed it, conflicts:", len(clash["conflicts"]))"""),
+    ("md", """## Recurrence
+
+Every expansion is given a window and a ceiling. A rule with neither UNTIL nor
+COUNT is unbounded by definition, so the caller says where to stop rather than
+the library guessing."""),
+    ("code", """unidav.expand_recurrence("20260105T090000Z", "FREQ=WEEKLY;BYDAY=MO",
+                         "20260101T000000Z", "20260201T000000Z", 10)"""),
     ("md", """## The C ABI underneath
 
-The same entry points are reachable from anything that speaks C. There the
-contract is expressed by clamping instead of raising — an exception must never
-unwind across an ABI boundary:
+The same engine is reachable from anything that speaks C: strings in, strings
+out.
 
 ```c
-unidav_fibonacci(-5);   /* 0       — clamped */
-unidav_fibonacci(200);  /* fib(92) — clamped */
+char *unidav_normalize(const char *input);
+char *unidav_project_json(const char *input);
+void  unidav_free(void *value);
 ```
+
+There every returned string is the caller's, freed exactly once with
+`unidav_free`, and a failure is a NULL return with a code in `unidav_status` —
+an exception must never unwind across an ABI boundary.
 
 See `include/UniDAV.h`, and the book for the full picture."""),
 ]
