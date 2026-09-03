@@ -11,10 +11,10 @@ bin           = @["unidav"]
 binDir        = "bin"
 
 requires "nim >= 2.2.0"
-# The SQLite cache behind pull/journal sync. UniDatabase is the family's own
-# database engine, but UniDAV is a leaf in the DAG and predates it; moving the
-# cache over is a decision for its own change, not a side effect of this one.
-requires "db_connector >= 0.1.0"
+# The SQLite cache behind pull/journal sync. UniDatabase compiles SQLite in, so
+# nothing here loads it at run time and Windows needs no sqlite3.dll -- which
+# db_connector did need, and which a runner does not have.
+requires "https://github.com/lituus-lab/UniDatabase#main"
 requires "https://github.com/lbartoletti/NimContracts#main"
 
 # The book toolchain, needed by three tasks and by nothing the library ships.

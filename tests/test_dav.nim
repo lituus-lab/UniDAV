@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 import std/[options, os, streams, strutils, tempfiles, unittest, xmlparser]
-import db_connector/db_sqlite
+import UniDatabase
 import UniDAV
 
 suite "WebDAV XML":
@@ -324,10 +324,10 @@ suite "SQLite store":
     legacy.cfile.close()
     defer:
       if fileExists(legacy.path): removeFile(legacy.path)
-    var raw = open(legacy.path, "", "", "")
-    raw.exec(sql"CREATE TABLE schema_meta (version INTEGER NOT NULL)")
-    raw.exec(sql"INSERT INTO schema_meta(version) VALUES (1)")
-    raw.close()
+    var raw = openSqlite(legacy.path)
+    raw.execute("CREATE TABLE schema_meta (version INTEGER NOT NULL)")
+    raw.execute("INSERT INTO schema_meta(version) VALUES (1)")
+    raw.close
     let migrated = openSqliteStore(legacy.path)
     check migrated.schemaVersion == CurrentSchemaVersion
     migrated.close()
@@ -336,8 +336,8 @@ suite "SQLite store":
     future.cfile.close()
     defer:
       if fileExists(future.path): removeFile(future.path)
-    raw = open(future.path, "", "", "")
-    raw.exec(sql"CREATE TABLE schema_meta (version INTEGER NOT NULL)")
-    raw.exec(sql"INSERT INTO schema_meta(version) VALUES (999)")
-    raw.close()
+    raw = openSqlite(future.path)
+    raw.execute("CREATE TABLE schema_meta (version INTEGER NOT NULL)")
+    raw.execute("INSERT INTO schema_meta(version) VALUES (999)")
+    raw.close
     expect ValueError: discard openSqliteStore(future.path)
