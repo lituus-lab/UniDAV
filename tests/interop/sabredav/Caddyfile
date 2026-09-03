@@ -1,0 +1,11 @@
+{
+    auto_https disable_redirects
+    admin off
+}
+
+https://localhost:8443 {
+    tls internal
+    @davDiscovery path /.well-known/caldav /.well-known/carddav
+    rewrite @davDiscovery /
+    reverse_proxy unidav-sabredav:8080
+}

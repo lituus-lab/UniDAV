@@ -1,25 +1,36 @@
 # SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 lituus-lab
-## C ABI for UniDAV. Built --app:staticlib/--app:lib --noMain --mm:arc
-## -d:release. Keep in sync with include/UniDAV.h; tests/c links the header
-## against this lib, so a header that drifts fails to compile rather than at a
-## caller's site.
-##
-## No Nim exception crosses this boundary: `{.raises: [].}` on every entry
-## point is what proves it rather than a convention that has to be remembered.
-import ../UniDAV
+import std/[json, times]
+import client, component, document, editing, json_formats, jscontact,
+    projection,
+    recurrence,
+    timezone_registry,
+  timezone_recurrence
 
-const UniDAVVersionC: cstring = "0.1.0"
+const Version: cstring = "0.1.0"
 
-# Unmangled C symbols, C calling convention, exported from the shared lib.
-# --noMain suppresses the generated entry point and with it every auto-init
-# hook: neither the static nor the shared build emits a DllMain or an ELF
-# constructor, so nothing initializes the Nim runtime. The first entry point
-# then enters Nim code whose globals were never set up. The shared build was
-# assumed to be covered by a loader hook it does not have -- its registries
-# stayed empty and the contrast entry answered nan. Every --noMain task passes
-# -d:noAutoInit; an ordinary executable linking this module must not, since its
-# own main already ran NimMain.
+const
+  UniDavStatusOk = 0.cint
+  UniDavStatusInvalidInput = 1.cint
+  UniDavStatusFailure = 2.cint
+
+var lastStatus {.threadvar.}: cint
+
+proc failStatus(): cstring =
+  lastStatus = UniDavStatusFailure
+  nil
+
+proc ownedCString(value: string): cstring =
+  let memory = cast[cstring](alloc(value.len + 1))
+  if value.len > 0: copyMem(memory, unsafeAddr value[0], value.len)
+  cast[ptr char](cast[uint](memory) + value.len.uint)[] = '\0'
+  memory
+
+
+# A shared library runs NimMain from DllMain (Windows) or an ELF constructor;
+# a static one has neither, so nothing initializes the Nim runtime. The first
+# entry point then enters Nim code whose globals were never set up and the
+# process faults. The static-library tasks pass -d:noAutoInit; shared
+# builds must not, or NimMain runs twice.
 when defined(noAutoInit):
   # A once primitive, not a plain flag: two threads reaching an entry point
   # together would both see the flag unset, both call NimMain, and the second
@@ -54,23 +65,210 @@ static void unidav_runtime_ensure(void) {
 else:
   template ensureRuntime() = discard
 
-{.push exportc, cdecl, dynlib, raises: [].}
 
-proc unidav_fibonacci(n: cint): clonglong =
-  ## fibonacci(n), n clamped to [0, FibMaxN]: n < 0 gives 0, n > FibMaxN gives
-  ## fibonacci(FibMaxN). Clamps rather than reporting, because the question has
-  ## an answer at every n a caller can express.
+{.push exportc, cdecl, dynlib.}
+proc unidav_status*(): cint =
   ensureRuntime()
-  let m = int(n)
-  if m < 0:
-    return clonglong(0)
-  if m > FibMaxN:
-    return fibonacci(FibMaxN).clonglong
-  fibonacci(m).clonglong
+  lastStatus
 
-proc unidav_version(): cstring =
-  ## Static version string; do not free.
+proc unidav_version*(): cstring =
   ensureRuntime()
-  UniDAVVersionC
+  lastStatus = UniDavStatusOk
+  Version
 
+proc unidav_validate_json*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return ownedCString($( %*{"valid": false, "diagnostics": [
+      {"severity": "dsError", "line": 0, "message": "null input"}
+    ]}))
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(validationJson($input))
+  except CatchableError as error:
+    lastStatus = UniDavStatusInvalidInput
+    ownedCString($( %*{"valid": false, "diagnostics": [
+      {"severity": "dsError", "line": 0, "message": error.msg}
+    ]}))
+
+proc unidav_normalize*(input: cstring): cstring =
+  ## Returns a deterministic CRLF document. Caller owns it through unidav_free.
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(normalizeDocument($input))
+  except CatchableError:
+    failStatus()
+
+proc unidav_project_json*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(projectionJson($input))
+  except CatchableError: failStatus()
+
+proc unidav_validate_availability*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString($( %*{"valid": validCalendarAvailability($input)}))
+  except CatchableError: failStatus()
+
+proc unidav_merge_three_way*(base, local, remote: cstring): cstring =
+  ensureRuntime()
+  if base.isNil or local.isNil or remote.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    let outcome = mergeThreeWay($base, $local, $remote)
+    var conflicts = newJArray()
+    for conflict in outcome.conflicts:
+      conflicts.add(%*{"path": conflict.path, "property": conflict.property})
+    lastStatus = UniDavStatusOk
+    ownedCString($(%*{"document": outcome.document, "conflicts": conflicts}))
+  except CatchableError: failStatus()
+
+proc unidav_patch_projection*(input, patchJson: cstring): cstring =
+  ensureRuntime()
+  if input.isNil or patchJson.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(patchedDocument($input, $patchJson))
+  except CatchableError: failStatus()
+
+proc unidav_to_jcard*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(jCardJson($input))
+  except CatchableError: failStatus()
+
+proc unidav_from_jcard*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(documentFromJCard($input))
+  except CatchableError: failStatus()
+
+proc unidav_to_jcal*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(jCalJson($input))
+  except CatchableError: failStatus()
+
+proc unidav_from_jcal*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(documentFromJCal($input))
+  except CatchableError: failStatus()
+
+proc unidav_to_jscontact*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(jsContactFromVCard($input))
+  except CatchableError: failStatus()
+
+proc unidav_from_jscontact*(input: cstring): cstring =
+  ensureRuntime()
+  if input.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    lastStatus = UniDavStatusOk
+    ownedCString(vCardFromJsContact($input))
+  except CatchableError: failStatus()
+
+proc unidav_expand_recurrence*(startValue, rule, firstValue, lastValue: cstring;
+    maxOccurrences: cint): cstring =
+  ensureRuntime()
+  if startValue.isNil or rule.isNil or firstValue.isNil or
+      lastValue.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    let first = parse($firstValue, "yyyyMMdd'T'HHmmss'Z'", utc())
+    let last = parse($lastValue, "yyyyMMdd'T'HHmmss'Z'", utc())
+    let values = expandRecurrence($startValue, $rule,
+      RecurrenceWindow(first: first, last: last,
+          maxOccurrences: maxOccurrences.int))
+    var output = newJArray()
+    for value in values: output.add(%value)
+    lastStatus = UniDavStatusOk
+    ownedCString($output)
+  except CatchableError: failStatus()
+
+proc unidav_timezone_offset*(vtimezone, tzid, localValue: cstring): cstring =
+  ensureRuntime()
+  if vtimezone.isNil or tzid.isNil or localValue.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    let roots = parseComponents($vtimezone)
+    if roots.len != 1:
+      lastStatus = UniDavStatusInvalidInput
+      return nil
+    let registry = newTimezoneRegistry()
+    registry.registerTimezone(roots[0])
+    lastStatus = UniDavStatusOk
+    ownedCString($(%*{"offsetSeconds": registry.offsetAt($tzid, $localValue)}))
+  except CatchableError: failStatus()
+
+proc unidav_expand_recurrence_local*(vtimezone, startValue, rule, tzid,
+    firstValue, lastValue: cstring; maxOccurrences: cint): cstring =
+  ensureRuntime()
+  if vtimezone.isNil or startValue.isNil or rule.isNil or tzid.isNil or
+      firstValue.isNil or lastValue.isNil:
+    lastStatus = UniDavStatusInvalidInput
+    return nil
+  try:
+    let roots = parseComponents($vtimezone)
+    if roots.len != 1:
+      lastStatus = UniDavStatusInvalidInput
+      return nil
+    let registry = newTimezoneRegistry()
+    registry.registerTimezone(roots[0])
+    let first = parse($firstValue, "yyyyMMdd'T'HHmmss'Z'", utc())
+    let last = parse($lastValue, "yyyyMMdd'T'HHmmss'Z'", utc())
+    let values = expandRecurrenceLocal($startValue, $rule, $tzid, registry,
+      RecurrenceWindow(first: first, last: last,
+          maxOccurrences: maxOccurrences.int))
+    var output = newJArray()
+    for value in values: output.add(%value)
+    lastStatus = UniDavStatusOk
+    ownedCString($output)
+  except CatchableError: failStatus()
+
+proc unidav_free*(value: pointer) =
+  ensureRuntime()
+  if not value.isNil: dealloc(value)
 {.pop.}

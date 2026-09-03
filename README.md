@@ -2,33 +2,46 @@
 <!-- Copyright 2026 lituus-lab -->
 # UniDAV
 
-GitHub template repository for the `lituus-lab` `Uni*` libraries. Press **Use
-this template** and a new engine starts with the layout, the gates and the CI
-already in place. Hello-world: `fibonacci`, in Nim, C ABI, and Python.
+Calendars and contacts, as a library, for the `lituus-lab` `Uni*` family.
+UniDAV reads and writes the formats the data actually lives in — vCard and
+iCalendar — and speaks the two protocols servers offer it over, CardDAV and
+CalDAV.
 
-**Status: incubating.** The layout, the gates and the CI are in use across the
-family and are not expected to move much. The `0.x` C ABI is not frozen, and
-this repo is a starting point rather than a dependency: nothing should require
-it.
+Its rule is **lossless**: the ordered document tree is the source of truth, and
+a property this library does not understand survives a round trip untouched.
+Typed projections sit on top, so a host can show a name and an email without
+first understanding every extension a phone put there.
+
+Four surfaces, one engine: **Nim**, a **C ABI**, a **Python** binding, and a
+**WASM** facade. The HTTP transport is separable — the bundled one is libcurl
+on Unix and WinHTTP on Windows, compiled from `csrc/` — so a caller can bring
+their own stack, and the tests can bring a fixture.
+
+**Status: incubating.** The `0.x` C ABI is not frozen.
 
 ## Layout
 
 ```text
-src/UniDAV.nim          umbrella module
-src/UniDAV/fibonacci.nim  Nim core (NimContracts)
-src/UniDAV/c_api.nim    C ABI
-include/UniDAV.h        hand-written C header
-tests/test_fibonacci.nim     Nim tests
+src/UniDAV.nim               umbrella module
+src/UniDAV/                  21 modules, layered bottom-up; see vgraph.cfg
+src/UniDAV/c_api.nim         C ABI
+src/UniDAV/wasm_api.nim      WASM facade
+csrc/                        the hardened HTTP transports
+include/UniDAV.h             hand-written C header
+bin/unidav.nim               the CLI
+tests/                       the Nim suites
 tests/c/                     C ABI test (links the header against the lib)
+tests/oracles/               fixtures checked against independent Python parsers
+tests/interop/               opt-in suites against a real DAV server
+bench/                       deterministic local benchmarks
 examples/                    Nim + C demos
 py/                          Cython binding + pytest
-ADRs/                        0001 DAG, 0002 license, 0003 engine&shell, 0004 conventions
+book/                        the five-chapter book
+ADRs/                        0001-0010
 tools/gate.nim               the failure gate (see "Running a task")
-tools/lint.nim tools/vgraph.nim  nimpretty check, layer check
 tests/canary_broken.nim      does not compile, on purpose
-tests/test_version.nim       the version's six copies must agree
+tests/test_version.nim       the version's copies must agree
 .github/workflows/ci.yml     3-OS Nim matrix + C ABI + Python + all-green
-CHANGELOG.md CITATION.cff CODE_OF_CONDUCT.md .editorconfig
 ```
 
 ## Build
@@ -37,18 +50,43 @@ CHANGELOG.md CITATION.cff CODE_OF_CONDUCT.md .editorconfig
 nimble install -y
 nim c --hints:off -o:build/unigate tools/gate.nim   # the failure gate, once
 
-build/unigate test    # Nim, debug (contracts active), see below
-build/unigate testRelease    # Nim, release (contracts compiled away)
 build/unigate testAll        # debug + release + C ABI
 build/unigate ctest          # C ABI: static lib + tests/c
-build/unigate cexample       # C demo
 build/unigate example        # Nim demo
+build/unigate cexample       # C demo
 build/unigate pyTest         # Cython + pytest
 build/unigate coverage       # gcov + lcov -> coverage/
-build/unigate book           # nimib book -> book/index.html
 build/unigate docs           # book + API reference -> pages/
 build/unigate canary         # must fail: proves the gate still works
 ```
+
+Opt-in, because each needs something this repo does not ship: `wasmTest`
+(Emscripten and node), `testOracles` (Python PIM parsers), `testInterop` and
+`testRadicale` (a prepared DAV server), `bench`.
+
+## Using it
+
+```nim
+import UniDAV
+
+proc main() =
+  const card = "begin:vcard\nversion:4.0\nuid:urn:uuid:ada\n" &
+    "fn:Ada Lovelace\nend:vcard\n"
+
+  echo validationJson(card)          # a verdict and its diagnostics
+  echo normalizeDocument(card)       # the wire form the standard requires
+  echo projectionJson(card)          # the neutral record a host displays
+
+main()
+```
+
+Normalising is not filtering: a property UniDAV has no opinion about comes back
+untouched. The projection is a *view* — take it to display, keep the document
+to store.
+
+The PyPI distribution is `lituus-unidav`; the import name stays `unidav`.
+Distribution and import are separate decisions, and the bare names are not all
+available.
 
 ## Running a task
 
@@ -84,30 +122,6 @@ The same gates run locally with pre-commit: `pip install pre-commit && pre-commi
 repository variable. It is off by default: across the family today every one of
 these deployments reports success while every site answers 404, and a job that
 is red forever teaches everyone to ignore red.
-
-## After "Use this template"
-
-Rename the tokens, then replace `fibonacci.nim` with the domain module(s).
-
-| Template | New engine | Example |
-|---|---|---|
-| `UniDAV` | `UniFoo` | `UniAccurate`, `UniMath` |
-| `unidav` | `unifoo` | `uniaccurate`, `unimath` |
-| `libUniDAV` | `libUniFoo` | `libUniAccurate` |
-| `UniDAV.h` | `UniFoo.h` | `UniAccurate.h` |
-| `lituus-unidav` | `lituus-unifoo` | `lituus-uniaccurate` |
-
-The C symbol prefix is the library's own name in lower case —
-`unidav_fibonacci`, so `unifoo_*`. Short prefixes read better and collide:
-a binary that links several engines at once holds them all in one namespace.
-
-Files to rename: `UniDAV.nimble`, `src/UniDAV.nim`, `src/UniDAV/`,
-`include/UniDAV.h`, `tests/c/test_unidav.c` (+ its Makefile target),
-`py/unidav/`. Then update `LICENSE`/`NOTICE` copyright and the ADR titles.
-
-The PyPI distribution is `lituus-<module>`; the import name stays `<module>`.
-Distribution and import are separate decisions, and the bare names are not all
-available.
 
 ## AI-assisted contributions
 

@@ -1,31 +1,29 @@
-<!-- SPDX-License-Identifier: Apache-2.0 -->
-<!-- Copyright 2026 lituus-lab -->
-# unidav — Python binding
+# UniDAV Python binding
 
-Distributed as `lituus-unidav`, imported as `unidav`: the two names
-are separate decisions, and the bare names are not all available on PyPI.
+The package exposes the UniDAV C ABI for validation, lossless normalization,
+projection patches, bounded UTC recurrence expansion, explicit VTIMEZONE offset lookup, and RFC
+7095/7265 jCard/jCal conversion, and bounded JSContact 2.0/vCard conversion with RFC 9555
+`vCardProps` preservation. `status()` exposes the last ABI status (`0` success, `1` invalid
+input, `2` caught engine failure).
 
-```bash
-pip install lituus-unidav
+`expand_recurrence_local()` expands wall-clock occurrences through a supplied bounded `VTIMEZONE`
+definition and returns UTC occurrence strings.
+
+`validate_availability()` validates the bounded RFC 7953 `calendar-availability`/
+`VAVAILABILITY` shape without calculating free/busy locally.
+
+`merge()` performs a lossless base/local/remote property merge and returns the merged document
+plus explicit conflict paths; unresolved conflicts never mutate the SQLite store.
+
+For a source checkout, build the native library first:
+
+```sh
+nimble pyLib
+cd py
+python -m pip install -e .
+python -m pytest -q
 ```
 
-From a checkout, `build/unigate pyTest` builds the extension and runs the tests
-in one step. The pieces, if you want them apart:
-
-```bash
-build/unigate pyLib          # the C library the extension links against
-build/unigate buildCython    # the extension, in place
-build/unigate pyWheel        # a wheel in py/dist/
-```
-
-```python
-import unidav
-
-unidav.version()        # the C library's version
-unidav.FIB_MAX_N        # 92, read from the C header, not restated here
-unidav.fibonacci(10)    # 55
-```
-
-`fibonacci` raises `TypeError` for a non-int and `ValueError` outside
-`[0, FIB_MAX_N]`. The C ABI clamps instead of reporting; the binding is where
-the domain becomes an error, because Python callers expect one.
+The source distribution carries the required Nim engine sources and can rebuild
+the library when Nim and nimble are available. Runtime payloads and credentials
+are never logged by the binding.

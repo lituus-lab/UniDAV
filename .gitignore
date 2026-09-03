@@ -21,6 +21,10 @@ libUniDAV.a
 coverage/
 lcov.info
 
+# `benchReadme` writes this, and it carries the machine it ran on: a number
+# from someone else's laptop is not a result this repo can stand behind.
+bench/.results.md
+
 # nim cache
 nimcache/
 rnimcache/

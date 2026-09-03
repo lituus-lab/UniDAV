@@ -1,0 +1,9 @@
+[interop-root]
+user = interop
+collection = .*
+permissions = RWrw
+
+[interop-collections]
+user = interop
+collection = interop/.*
+permissions = RWrw
