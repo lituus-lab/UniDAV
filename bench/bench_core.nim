@@ -62,6 +62,13 @@ proc main() =
     let operations = formatFloat(row.operations, ffDecimal, 0).strip(
       leading = false, chars = {'.'})
     markdown.add &"| {row.name} | {row.nanoseconds:.1f} | {operations} |\n"
+  # A number without the conditions it was measured under is not a result.
+  # The compiler and the build mode decide most of it -- a debug build reads
+  # an order of magnitude slower -- and the command is what a reader repeats.
+  let mode = when defined(release): "release" else: "debug"
+  markdown.add "\n"
+  markdown.add &"<!-- bench:nim={NimVersion} mode={mode} -->\n"
+  markdown.add &"<!-- bench:command=nimble bench -->\n"
   writeFile("bench/.results.md", markdown)
   echo "sink = ", sink
 

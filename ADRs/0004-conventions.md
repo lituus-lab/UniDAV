@@ -64,8 +64,12 @@ failed, so its exit code proves nothing and the task's own success marker is
 what the gate reads.
 
 - `testCi` + `testCiRelease` on ubuntu/macOS/Windows.
-- `wasmTest`, `testOracles`, `testInterop` and `bench` are opt-in: they need
-  Emscripten, Python parsers, or a DAV server this repo does not run.
+- `wasmTest`, `testOracles`, `testInterop` and `testRadicale` are opt-in: they
+  need Emscripten, Python parsers, or a DAV server this repo does not run.
+- `bench` and `benchReadme` are opt-in for a different reason: they need
+  nothing this repo lacks, they need *this* machine. A number measured
+  elsewhere says nothing here, which is why the results carry the machine's
+  name and `bench/.results.md` is not tracked.
 - `ctest`, `cexample` and `clib` on ubuntu/macOS/Windows.
 - the Python matrix on ubuntu/macOS/Windows, 3.10 to 3.14.
 - `lint`, `checkVGraph`, `docs` and `coverage` on ubuntu.

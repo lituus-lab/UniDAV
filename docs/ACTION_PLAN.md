@@ -57,8 +57,11 @@ mais utilisent des façades adaptées à leur plateforme.
 
 ## Definition of done
 
-Une phase n'est finie que si debug/release, C, Python et tests applicables sont verts, la doc décrit
-exactement l'état livré, et aucune dépendance ne remonte le DAG de `UNI_FAMILY_STRUCTURE.md`.
+Une phase n'est finie que si la doc décrit exactement l'état livré, que les portes applicables
+sont vertes — debug/release, C, Python, WASM, couverture et sanitizer —, qu'une preuve
+d'interopérabilité existe partout où une affirmation porte sur un serveur, et que le graphe de
+dépendances de la famille reste acyclique : c'est `vgraph.cfg` qui le déclare et
+`nimble checkVGraph` qui le vérifie.
 
 Les éléments non réalisés restent explicitement listés dans les phases concernées ; aucun rapport
 temporaire d'audit n'est conservé dans l'arbre de livraison.

@@ -3,9 +3,22 @@
 ## Inserts the current machine's measured block into bench/README.md.
 import std/[os, osproc, strutils]
 
+proc slugify(value: string): string =
+  result = value.toLowerAscii.multiReplace(
+    (" ", "-"), ("(", ""), (")", ""), ("_", "-"))
+  while "--" in result:
+    result = result.replace("--", "-")
+  result = result.strip(chars = {'-'})
+
 proc machineSlug(): string =
+  ## The override goes through the same normalisation as a detected name: it
+  ## ends up inside an HTML comment marker, and a value with a space or a
+  ## bracket makes a marker the exporter cannot find again. A value that
+  ## normalises to nothing is no name at all, so detection runs instead.
   if existsEnv("UNIDAV_BENCH_MACHINE"):
-    return getEnv("UNIDAV_BENCH_MACHINE")
+    let override = slugify(getEnv("UNIDAV_BENCH_MACHINE"))
+    if override.len > 0:
+      return override
   var processor = hostCPU
   when defined(macosx):
     let (brand, code) = execCmdEx("sysctl -n machdep.cpu.brand_string")
@@ -17,10 +30,7 @@ proc machineSlug(): string =
       if line.startsWith("model name"):
         processor = line.split(':', 1)[^1].strip
         break
-  result = (hostOS & "-" & processor).toLowerAscii.multiReplace(
-    (" ", "-"), ("(", ""), (")", ""), ("_", "-"))
-  while "--" in result:
-    result = result.replace("--", "-")
+  slugify(hostOS & "-" & processor)
 
 proc main() =
   const
