@@ -33,10 +33,11 @@ tests/                       the Nim suites
 tests/c/                     C ABI test (links the header against the lib)
 tests/oracles/               fixtures checked against independent Python parsers
 tests/interop/               opt-in suites against a real DAV server
+bench/                       deterministic local benchmarks
 examples/                    Nim + C demos
 py/                          Cython binding + pytest
 book/                        the five-chapter book
-ADRs/                        0001-0004
+ADRs/                        0001-0010
 tools/gate.nim               the failure gate (see "Running a task")
 tests/canary_broken.nim      does not compile, on purpose
 tests/test_version.nim       the version's copies must agree
@@ -61,7 +62,7 @@ build/unigate canary         # must fail: proves the gate still works
 
 Opt-in, because each needs something this repo does not ship: `wasmTest`
 (Emscripten and node), `testOracles` (Python PIM parsers), `testInterop` and
-`testRadicale` (a prepared DAV server).
+`testRadicale` (a prepared DAV server), `bench`.
 
 ## Using it
 

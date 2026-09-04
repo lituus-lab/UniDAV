@@ -47,7 +47,7 @@ The gate reads the marker each task writes on its last line.
 
 A DAV regression needs an anonymized fixture and a recovery-path test. Changes
 to a public Nim operation also update the surface-completeness manifest or
-record a deliberate foreign-interface exclusion in an ADR.
+record a deliberate foreign-interface exclusion in ADR-0005.
 
 ## Documentation
 
