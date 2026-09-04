@@ -963,3 +963,37 @@ suite "what the review found":
     let report = validationJson(alarm)
     check "exactly one TRIGGER" in report
     check "ACTION is not an RFC 5545 value" in report
+
+suite "the public vocabulary":
+  test "validation reports the format, not a Nim enum's spelling":
+    # `$dkVCard` is "dkVCard", and it used to go straight into the JSON the C
+    # ABI and the Python binding return.
+    let report = validationJson("BEGIN:VCARD\r\nVERSION:4.0\r\nFN:A\r\nEND:VCARD\r\n")
+    check "\"kind\":\"vcard\"" in report
+    check "dkVCard" notin report
+
+  test "a diagnostic's severity too":
+    let report = validationJson("not a document")
+    check "\"severity\":\"error\"" in report
+    check "dsError" notin report
+    check "\"kind\":\"unknown\"" in report
+
+  test "the format is not the projection's kind":
+    # `project` says what record a document yields -- contact, event, task.
+    # `validate` says what the document is. A calendar is not a contact, so
+    # the two vocabularies are kept apart rather than merged.
+    const event = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//T//EN\r\n" &
+      "BEGIN:VEVENT\r\nUID:a\r\nDTSTAMP:20260101T000000Z\r\n" &
+      "DTSTART:20260101T000000Z\r\nSUMMARY:S\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n"
+    check "\"kind\":\"icalendar\"" in validationJson(event)
+    check "\"kind\":\"event\"" in projectionJson(event)
+
+suite "propfind names begin like names":
+  test "a digit, a hyphen or a period cannot start one":
+    for name in ["1prop", "-prop", ".prop"]:
+      expect DavXmlError:
+        discard propfindBody([(DavNamespace, name)])
+
+  test "a letter or an underscore can, and digits may follow":
+    check "D:_x1" in propfindBody([(DavNamespace, "_x1")])
+    check "D:get-etag.v2" in propfindBody([(DavNamespace, "get-etag.v2")])

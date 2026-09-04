@@ -10,6 +10,24 @@ type
     message*: string
   DocumentKind* = enum dkUnknown, dkVCard, dkICalendar
 
+proc publicName(kind: DocumentKind): string =
+  ## What a caller reads. `$dkVCard` is "dkVCard", a Nim enum's own spelling,
+  ## and it was going straight into the JSON these procedures return -- through
+  ## the C ABI and the Python binding with it.
+  ##
+  ## This names the *format*, which is not the projection's `kind`: that one
+  ## says "contact", "event" or "task", the shape of the record a document
+  ## yields. A calendar is not a contact, so the two vocabularies stay apart.
+  case kind
+  of dkVCard: "vcard"
+  of dkICalendar: "icalendar"
+  of dkUnknown: "unknown"
+
+proc publicName(severity: DiagnosticSeverity): string =
+  case severity
+  of dsError: "error"
+  of dsWarning: "warning"
+
 proc addDiagnostic(diagnostics: var seq[Diagnostic]; message: string) =
   diagnostics.add(Diagnostic(severity: dsError, message: message))
 
@@ -1224,11 +1242,11 @@ proc validationJson*(input: string): string =
   for diagnostic in diagnostics:
     if diagnostic.severity == dsError: hasError = true
   root["valid"] = %(not hasError)
-  root["kind"] = %($detectKind(input))
+  root["kind"] = %(publicName(detectKind(input)))
   root["diagnostics"] = newJArray()
   for diagnostic in diagnostics:
     root["diagnostics"].add(%*{
-      "severity": $diagnostic.severity,
+      "severity": publicName(diagnostic.severity),
       "line": diagnostic.line,
       "message": diagnostic.message
     })

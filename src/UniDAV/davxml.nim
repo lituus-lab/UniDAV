@@ -123,10 +123,15 @@ proc hasPropertyChild*(response: DavResponse; propertyName,
     for name in item.childNames:
       if name.cmpIgnoreCase(childName) == 0: return true
 
-const NameChars = {'A'..'Z', 'a'..'z', '0'..'9', '-', '_', '.'}
-  ## What may appear in an XML element name here. Deliberately narrower than
-  ## the standard allows: every property this library asks for is spelled from
-  ## these, and a wider set only widens what a caller can inject.
+const
+  NameStartChars = {'A'..'Z', 'a'..'z', '_'}
+    ## What an XML name may begin with. A digit, a hyphen or a period there is
+    ## not a name, and a server answering the malformed element it produces is
+    ## answering about nothing.
+  NameChars = NameStartChars + {'0'..'9', '-', '.'}
+    ## What may follow. Deliberately narrower than the standard allows: every
+    ## property this library asks for is spelled from these, and a wider set
+    ## only widens what a caller can inject.
 
 proc propfindBody*(properties: openArray[(string, string)]): string =
   result = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" &
@@ -146,7 +151,8 @@ proc propfindBody*(properties: openArray[(string, string)]): string =
           "propfind namespace is not declared by this body: " & namespace)
     # The name goes into a tag, where escaping cannot save it: a name carrying
     # `<`, a quote or a space is not a name, it is markup.
-    if name.len == 0 or not name.allCharsInSet(NameChars):
+    if name.len == 0 or name[0] notin NameStartChars or
+        not name.allCharsInSet(NameChars):
       raise newException(DavXmlError, "propfind property name is not a name: " & name)
     result.add("<" & prefix & ":" & name & "/>")
   result.add("</D:prop></D:propfind>")

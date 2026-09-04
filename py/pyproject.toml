@@ -1,5 +1,8 @@
 [build-system]
-requires = ["setuptools>=68", "wheel", "Cython>=3"]
+# 77, not 68: `license = "Apache-2.0"` below is PEP 639's SPDX form, which
+# setuptools reads from 77. An isolated build that resolved an older one
+# failed on the licence, and `pyDeps` already installs 77 for that reason.
+requires = ["setuptools>=77", "wheel", "Cython>=3"]
 build-backend = "setuptools.build_meta"
 
 [project]
