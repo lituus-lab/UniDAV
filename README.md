@@ -62,7 +62,11 @@ build/unigate canary         # must fail: proves the gate still works
 
 Opt-in, because each needs something this repo does not ship: `wasmTest`
 (Emscripten and node), `testOracles` (Python PIM parsers), `testInterop` and
-`testRadicale` (a prepared DAV server), `bench`.
+`testRadicale` (a prepared DAV server).
+
+`bench` and `benchReadme` are opt-in for a different reason: they need nothing
+this repo lacks, they need *this* machine. A number measured elsewhere says
+nothing here.
 
 ## Using it
 
