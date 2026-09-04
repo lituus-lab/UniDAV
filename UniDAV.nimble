@@ -391,3 +391,12 @@ task testOracles, "Check the fixtures against independent PIM parsers":
   exec gate("oracleDeps")
   exec "nim c -r --path:src -o:build/test_oracles tests/test_oracles.nim"
   done "testOracles"
+
+task bench, "Deterministic local PIM benchmarks":
+  exec "nim c -r -d:release --path:src -o:build/bench_core bench/bench_core.nim"
+  done "bench"
+
+task benchReadme, "Benchmark, and export a machine-tagged result block":
+  exec gate("bench")
+  exec "nim c -r --hints:off -o:build/bench_readme bench/export_readme.nim"
+  done "benchReadme"

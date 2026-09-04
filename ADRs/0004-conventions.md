@@ -21,10 +21,11 @@ bin/unidav.nim              the CLI
 tests/ tests/c/             Nim + C ABI tests
 tests/oracles/              independent Python parsers the fixtures are checked against
 tests/interop/              opt-in suites against a real DAV server
+bench/                      deterministic local benchmarks
 examples/                   Nim + C demos
 py/                         Cython binding + pytest
 book/                       nimib book, code blocks run at build
-ADRs/                       0001-0004
+ADRs/                       0001-0010
 .github/workflows/ci.yml    3-OS Nim + C ABI + Python
 LICENSE NOTICE CONTRIBUTING.md SECURITY.md .gitignore README.md AGENTS.md CLAUDE.md
 ```
@@ -63,8 +64,8 @@ failed, so its exit code proves nothing and the task's own success marker is
 what the gate reads.
 
 - `testCi` + `testCiRelease` on ubuntu/macOS/Windows.
-- `wasmTest`, `testOracles`, `testInterop` and `testRadicale` are opt-in: they
-  need Emscripten, Python parsers, or a DAV server this repo does not run.
+- `wasmTest`, `testOracles`, `testInterop` and `bench` are opt-in: they need
+  Emscripten, Python parsers, or a DAV server this repo does not run.
 - `ctest`, `cexample` and `clib` on ubuntu/macOS/Windows.
 - the Python matrix on ubuntu/macOS/Windows, 3.10 to 3.14.
 - `lint`, `checkVGraph`, `docs` and `coverage` on ubuntu.
