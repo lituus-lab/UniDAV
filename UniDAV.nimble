@@ -197,8 +197,12 @@ task testAll, "debug + release + C ABI":
   exec gate("ctest")
   done "testAll"
 
+# Nim takes `-o:` literally and appends no platform extension, as the library
+# names above already have to spell out.
+const cliExe = when defined(windows): "build/unidav.exe" else: "build/unidav"
+
 task cli, "The unidav command":
-  exec "nim c -d:release --path:src -o:build/unidav bin/unidav.nim"
+  exec "nim c -d:release --path:src -o:" & cliExe & " bin/unidav.nim"
   done "cli"
 
 task example, "Nim demo":
